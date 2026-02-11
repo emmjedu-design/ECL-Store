@@ -1043,6 +1043,64 @@
             mainNav.classList.toggle('active');
         }
 
+        // Generate order summary
+        function generateOrderSummary() {
+            const orderId = 'ORD' + Date.now().toString().slice(-6);
+            const items = cart.map(item => ({
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                subtotal: item.price * item.quantity
+            }));
+            
+            const subtotal = items.reduce((total, item) => total + item.subtotal, 0);
+            const tax = subtotal * 0.075; // 7.5% tax (adjust as needed)
+            const total = subtotal + tax;
+            
+            return {
+                orderId: orderId,
+                date: new Date().toLocaleString(),
+                items: items,
+                subtotal: subtotal,
+                tax: tax,
+                total: total
+            };
+        }
+
+        // Save order to localStorage
+        function saveOrder(orderSummary) {
+            // Get existing orders or initialize empty array
+            const orders = JSON.parse(localStorage.getItem('orders')) || [];
+            
+            // Add new order
+            orders.push(orderSummary);
+            
+            // Save back to localStorage
+            localStorage.setItem('orders', JSON.stringify(orders));
+            
+            // Also save as last order for easy retrieval
+            localStorage.setItem('lastOrder', JSON.stringify(orderSummary));
+        }
+
+        // Create WhatsApp message
+        function createWhatsAppMessage(orderSummary) {
+            let message = `Hello Essence Bead Haven! I'd like to place an order.\n\n`;
+            message += `Order ID: ${orderSummary.orderId}\n`;
+            message += `Order Date: ${orderSummary.date}\n\n`;
+            message += `Order Details:\n`;
+            
+            orderSummary.items.forEach((item, index) => {
+                message += `${index + 1}. ${item.name} x${item.quantity} - ₦${item.subtotal.toFixed(2)}\n`;
+            });
+            
+            message += `\nSubtotal: ₦${orderSummary.subtotal.toFixed(2)}\n`;
+            message += `Tax: ₦${orderSummary.tax.toFixed(2)}\n`;
+            message += `Total: ₦${orderSummary.total.toFixed(2)}\n\n`;
+            message += `Please confirm this order and let me know the payment details. Thank you!`;
+            
+            return message;
+        }
+
         // Checkout button functionality
         document.querySelector('.checkout-btn').addEventListener('click', () => {
             if (cart.length === 0) {
@@ -1050,15 +1108,51 @@
                 return;
             }
             
-            alert(`Thank you for your order! Total: ₦${cart.reduce((total, item) => total + (item.price * item.quantity), 0).toFixed(2)}\n\nThis is a demo store. In a real implementation, this would redirect to a checkout page.`);
+            // Generate order summary
+            const orderSummary = generateOrderSummary();
             
-            // Clear cart after checkout
-            cart = [];
-            updateCartCount();
-            saveCartToLocalStorage();
-            renderCartItems();
-            closeCartModal();
+            // Save order to localStorage
+            saveOrder(orderSummary);
+            
+            // Create WhatsApp message
+            const whatsappMessage = createWhatsAppMessage(orderSummary);
+            
+            // Show confirmation with WhatsApp link
+            const confirmCheckout = confirm(`Order Total: ₦${orderSummary.total.toFixed(2)}\n\nClick OK to proceed to WhatsApp to complete your order.`);
+            
+            if (confirmCheckout) {
+                // Open WhatsApp with the order message
+                const whatsappUrl = `https://wa.me/2349059780623?text=${encodeURIComponent(whatsappMessage)}`;
+                window.open(whatsappUrl, '_blank');
+                
+                // Clear cart after successful order initiation
+                cart = [];
+                updateCartCount();
+                saveCartToLocalStorage();
+                renderCartItems();
+                closeCartModal();
+            }
         });
+
+        // Optional: Add a function to view order history
+        function viewOrderHistory() {
+            const orders = JSON.parse(localStorage.getItem('orders')) || [];
+            if (orders.length === 0) {
+                alert('No previous orders found.');
+                return;
+            }
+            
+            let historyMessage = `Order History:\n\n`;
+            orders.forEach((order, index) => {
+                historyMessage += `Order ${index + 1}:\n`;
+                historyMessage += `ID: ${order.orderId}\n`;
+                historyMessage += `Date: ${order.date}\n`;
+                historyMessage += `Total: ₦${order.total.toFixed(2)}\n`;
+                historyMessage += `------------------------\n`;
+            });
+            
+            alert(historyMessage);
+        }
 
         // Smooth scrolling for navigation links
         document.querySelectorAll('nav a, .hero .btn').forEach(anchor => {
